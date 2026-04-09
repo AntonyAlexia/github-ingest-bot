@@ -23,25 +23,33 @@ def run_ingestion():
     
     all_data = []
     for symbol in STOCKS:
-        url = f'https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol={symbol}&apikey={API_KEY}'
+        # Added &outputsize=full to get 20+ years of history (or the last 100 days)
+        url = f'https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol={symbol}&outputsize=compact&apikey={API_KEY}'
         r = requests.get(url).json()
         
         if "Time Series (Daily)" in r:
-            latest_date = list(r["Time Series (Daily)"].keys())[0]
-            row = r["Time Series (Daily)"][latest_date]
-            all_data.append({
-                "symbol": symbol,
-                "date": latest_date,
-                "close": float(row["4. close"]),
-                "volume": int(row["5. volume"])
-            })
+            time_series = r["Time Series (Daily)"]
+            # Loop through ALL dates returned by the API (usually the last 100)
+            for date, row in time_series.items():
+                all_data.append({
+                    "symbol": symbol,
+                    "date": date,
+                    "close": float(row["4. close"]),
+                    "volume": int(row["5. volume"])
+                })
+        
+        # IMPORTANT: Alpha Vantage Free Tier only allows 5 calls per minute.
+        # We wait 15 seconds between stocks so we don't get blocked.
+        import time
+        time.sleep(15)
 
     if all_data:
         df = pd.DataFrame(all_data)
-        # Load to BigQuery (Append mode)
-        job_config = bigquery.LoadJobConfig(write_disposition="WRITE_APPEND")
+        # We use WRITE_TRUNCATE just for this first "backfill" to clean out the 1-row test
+        job_config = bigquery.LoadJobConfig(write_disposition="WRITE_TRUNCATE")
         client.load_table_from_dataframe(df, table_ref, job_config=job_config).result()
-        print(f"✅ Successfully ingested {len(all_data)} rows.")
+        print(f"✅ Success! Backfilled {len(all_data)} rows.")
+
 
 if __name__ == "__main__":
     run_ingestion()
