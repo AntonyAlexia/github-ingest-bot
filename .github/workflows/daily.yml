@@ -1,0 +1,28 @@
+name: Market Data Pipeline
+
+on:
+  schedule:
+    - cron: '0 22 * * *' # This runs it every day at 10 PM UTC
+  workflow_dispatch:      # This adds a "Play" button so you can run it manually
+
+jobs:
+  run-pipeline:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install Dependencies
+        run: |
+          pip install pandas google-cloud-bigquery requests pyarrow
+
+      - name: Run Ingest Script
+        env:
+          GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
+          ALPHA_VANTAGE_KEY: ${{ secrets.ALPHA_VANTAGE_KEY }}
+        run: python ingest.py
