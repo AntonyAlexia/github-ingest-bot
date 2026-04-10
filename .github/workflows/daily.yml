@@ -19,7 +19,7 @@ jobs:
 
       - name: Install Dependencies
         run: |
-          pip install pandas google-cloud-bigquery requests pyarrow pandas-gbq
+          pip install pandas google-cloud-bigquery pyarrow yfinance
 
       - name: Run Ingest Script
         env:
